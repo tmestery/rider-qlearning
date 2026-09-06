@@ -1,8 +1,6 @@
 # Rider Q-learning
 
-A tiny tabular Q-learning agent that learns **hold vs release** for the game Rider.
-
-No neural network — just a 15×2 lookup table.
+A tiny tabular Q-learning agent that learns **hold vs release** for the game Rider. No neural network — just a 15×2 lookup table.
 
 ## The idea (one paragraph)
 
@@ -41,7 +39,7 @@ You should see average score print every 50 episodes, then a saved `checkpoints/
 
 Next step: decide how we talk to Rider (browser, desktop window, phone) and replace `mock_env.py` with that.
 
-## Bins (quick refresher)
+## Bins
 
 Continuous values like `angle = 17.3` can't live in a small table. We chop the axis into ranges:
 
