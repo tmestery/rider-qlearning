@@ -7,5 +7,6 @@ venv/
 .DS_Store
 *.npy
 checkpoints/
+captures/
 .pytest_cache/
 .mypy_cache/

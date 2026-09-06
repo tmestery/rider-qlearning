@@ -2,6 +2,8 @@
 
 A tiny tabular Q-learning agent that learns **hold vs release** for the game Rider. No neural network — just a 15×2 lookup table.
 
+Works with **Ketchapp Rider** on Mac (`/Applications/Rider.app`).
+
 ## The idea (one paragraph)
 
 Each frame we read the bike's **tilt angle** and **vertical velocity**, then **bin** those numbers into buckets (5 angle × 3 velocity = **15 states**). The Q-table stores how good `hold` and `release` have been from each state. The bot picks the better action (with some random exploration early on), gets a **score-based reward** (flips that pay double are good), and nudges the table with the classic Q-learning update. After enough runs, the table becomes a cheat-sheet policy.
@@ -9,15 +11,21 @@ Each frame we read the bike's **tilt angle** and **vertical velocity**, then **b
 ## Layout
 
 ```
-train.py                 # run this to train
+train.py                 # train on the fake env (safe, no game needed)
+train_mac.py             # train against real Rider on Mac
+capture_test.py          # screenshot + angle smoke test
 rider_qlearning/
   bins.py                # continuous numbers → state id
   q_table.py             # the 15×2 table + update rule
   agent.py               # epsilon-greedy action choice
-  mock_env.py            # fake Rider (stand-in until real game wiring)
+  mock_env.py            # fake Rider
+  mac_window.py          # find window + screenshot
+  mac_input.py           # mouse hold / release
+  features.py            # angle from silhouette (PCA)
+  mac_env.py             # real-game environment
 ```
 
-## Quick start
+## Quick start (mock — no permissions)
 
 ```bash
 python -m venv .venv
@@ -26,18 +34,34 @@ pip install -r requirements.txt
 python train.py
 ```
 
-You should see average score print every 50 episodes, then a saved `checkpoints/q_table.npy`.
+## Mac game setup
+
+1. Install deps (above).
+2. Open **Rider** and leave the game window visible.
+3. Grant your terminal (or Cursor) **Screen Recording** and **Accessibility**:
+   System Settings → Privacy & Security.
+4. Smoke-test capture:
+
+```bash
+python capture_test.py
+```
+
+You should get `captures/rider_frame.png` and a printed angle.
+
+5. Train on the real game (mouse will move — stay ready to Ctrl+C):
+
+```bash
+python train_mac.py
+```
 
 ## Where we are
 
-| Done | Not yet |
-|------|---------|
-| Binning (5×3) | Real screenshots → angle/velocity |
-| Q-table + update | Real tap / hold injection |
-| Epsilon-greedy agent | Playing against the actual Rider game |
-| Mock env + train loop | Tuned bin edges for real physics |
-
-Next step: decide how we talk to Rider (browser, desktop window, phone) and replace `mock_env.py` with that.
+| Done | Still rough |
+|------|-------------|
+| Mock train loop | Angle estimate is a first-pass silhouette PCA |
+| Mac screenshot + hold/release | Crash / flip detection is heuristic, not OCR score |
+| Binning + Q-learning | Restarting runs between episodes is still manual |
+| `capture_test.py` / `train_mac.py` | Bin edges may need tuning for real physics |
 
 ## Bins
 

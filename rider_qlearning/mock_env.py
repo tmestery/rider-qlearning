@@ -1,25 +1,15 @@
 """
 Fake Rider environment for learning the training loop.
 
-Later we replace this with real screenshots + tap injection.
-For now: hold leans the bike forward, release leans it back.
+Hold leans the bike forward, release leans it back.
 Score goes up each step; a controlled flip pays double; a crash ends the run.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import random
 
-
-@dataclass
-class StepResult:
-    angle: float
-    velocity: float
-    reward: float
-    score: float
-    done: bool
+from rider_qlearning.step import StepResult
 
 
 class MockRiderEnv:
