@@ -48,11 +48,17 @@ python capture_test.py
 
 You should get `captures/rider_frame.png` and a printed angle.
 
-5. Train on the real game (mouse will move — stay ready to Ctrl+C):
+5. Train on the real game:
 
 ```bash
 python train_mac.py
 ```
+
+**Kill switches** (any one stops training and releases the mouse):
+
+- Move the cursor to the **top-left corner** of the screen
+- Hold **Escape**
+- **Ctrl+C**
 
 ## Where we are
 

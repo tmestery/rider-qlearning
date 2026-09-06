@@ -6,3 +6,5 @@
 - Initial scaffold: bins, Q-table, epsilon-greedy agent, mock Rider env, train loop.
 
 ## Unreleased
+
+- Kill switches for Mac training: top-left corner, Escape, Ctrl+C; always release mouse on exit.

@@ -3,7 +3,7 @@ Real Rider environment on macOS (Ketchapp Rider.app).
 
 Each step:
   1. Hold or release the mouse over the game window.
-  2. Wait a short beat.
+  2. Wait a short beat (interruptible — kill switches checked).
   3. Screenshot → estimate angle / velocity.
   4. Reward from score-style signals (survive / flip / crash heuristic).
 
@@ -14,9 +14,7 @@ Before using this:
 
 from __future__ import annotations
 
-import time
-
-from rider_qlearning import features, mac_input, mac_window
+from rider_qlearning import features, mac_input, mac_window, safety
 from rider_qlearning.q_table import HOLD
 from rider_qlearning.step import StepResult
 
@@ -32,13 +30,16 @@ class MacRiderEnv:
         self.steps = 0
         self._flip_armed = True  # only pay flip bonus once per rotation
 
+    def close(self) -> None:
+        """Always release the mouse when stopping."""
+        mac_input.emergency_release()
+        self.holding = False
+
     def reset(self) -> tuple[float, float]:
         """Release input and read the starting state. Start a run in-game first."""
-        cx, cy = self.window.center
-        if self.holding:
-            mac_input.release(cx, cy)
-            self.holding = False
-        time.sleep(0.2)
+        safety.check()
+        self.close()
+        safety.sleep(0.2)
 
         # Refresh window bounds in case it moved.
         self.window = mac_window.find_rider_window()
@@ -51,6 +52,7 @@ class MacRiderEnv:
         return angle, 0.0
 
     def step(self, action: int) -> StepResult:
+        safety.check()
         cx, cy = self.window.center
         want_hold = action == HOLD
 
@@ -60,10 +62,8 @@ class MacRiderEnv:
         elif not want_hold and self.holding:
             mac_input.release(cx, cy)
             self.holding = False
-        # RELEASE action with already-released mouse: nothing to do.
-        # HOLD with already-held mouse: keep holding.
 
-        time.sleep(self.step_seconds)
+        safety.sleep(self.step_seconds)
 
         frame = mac_window.capture_window(self.window)
         angle = features.estimate_angle(frame)
@@ -82,7 +82,6 @@ class MacRiderEnv:
             self._flip_armed = True
 
         # Crash heuristic: extreme tilt that doesn't recover quickly.
-        # (We'll refine this once we can detect the game-over screen.)
         if abs(angle) >= 170.0:
             reward = -5.0
             done = True
@@ -90,9 +89,8 @@ class MacRiderEnv:
         if self.steps >= self.max_steps:
             done = True
 
-        if done and self.holding:
-            mac_input.release(cx, cy)
-            self.holding = False
+        if done:
+            self.close()
 
         self.score += reward
         return StepResult(
