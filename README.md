@@ -14,6 +14,7 @@ Each frame we read the bike's **tilt angle** and **vertical velocity**, then **b
 train.py                 # train on the fake env (safe, no game needed)
 train_mac.py             # train against real Rider on Mac
 capture_test.py          # screenshot + angle smoke test
+play_tap_test.py         # debug Play button click (saves annotated PNG)
 rider_qlearning/
   bins.py                # continuous numbers → state id
   q_table.py             # the 15×2 table + update rule
@@ -60,7 +61,7 @@ python train_mac.py
 - Hold **Escape**
 - **Ctrl+C**
 
-Between episodes the bot **taps Play / Play again** for you (often twice — score screen then restart).
+Between episodes the bot **taps Play / Play again** in the **lower-third middle** of the window (often more than once — score screen then restart).
 
 ## Where we are
 

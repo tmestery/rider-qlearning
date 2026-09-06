@@ -44,14 +44,22 @@ class WindowInfo:
     def center(self) -> tuple[float, float]:
         return (self.left + self.width / 2.0, self.top + self.height / 2.0)
 
+    def frame_to_screen(self, fx: float, fy: float, frame_shape: tuple[int, ...]) -> tuple[float, float]:
+        """Map screenshot pixel (fx, fy) → global screen coordinates."""
+        fh, fw = frame_shape[0], frame_shape[1]
+        x = self.left + (fx / fw) * self.width
+        y = self.top + (fy / fh) * self.height
+        return x, y
+
 
 def find_rider_window() -> WindowInfo:
-    """Return the on-screen Rider window, or raise if not found."""
+    """Return the largest on-screen Rider window, or raise if not found."""
     options = kCGWindowListOptionOnScreenOnly
     windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
     if not windows:
         raise RuntimeError("Could not list windows. Check Screen Recording permission.")
 
+    candidates: list[WindowInfo] = []
     for window in windows:
         owner = window.get(kCGWindowOwnerName, "")
         title = window.get(kCGWindowName, "") or ""
@@ -64,18 +72,24 @@ def find_rider_window() -> WindowInfo:
         height = float(bounds.get("Height", 0))
         if width < 100 or height < 100:
             continue  # skip tiny chrome windows
-        return WindowInfo(
-            window_id=int(window[kCGWindowNumber]),
-            left=float(bounds["X"]),
-            top=float(bounds["Y"]),
-            width=width,
-            height=height,
+        candidates.append(
+            WindowInfo(
+                window_id=int(window[kCGWindowNumber]),
+                left=float(bounds["X"]),
+                top=float(bounds["Y"]),
+                width=width,
+                height=height,
+            )
         )
 
-    raise RuntimeError(
-        "Rider window not found. Open /Applications/Rider.app and start a run, "
-        "then try again."
-    )
+    if not candidates:
+        raise RuntimeError(
+            "Rider window not found. Open /Applications/Rider.app and start a run, "
+            "then try again."
+        )
+
+    # Prefer the biggest window (the game canvas, not a tiny chrome piece).
+    return max(candidates, key=lambda w: w.width * w.height)
 
 
 def capture_window(info: WindowInfo) -> np.ndarray:

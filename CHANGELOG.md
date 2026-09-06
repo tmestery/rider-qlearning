@@ -7,6 +7,7 @@
 
 ## Unreleased
 
+- Fix Play detection (green hex button) and harden Mac clicks; add `play_tap_test.py`.
 - Auto tap Play / Play again between Mac episodes; detect run end when bike silhouette vanishes.
 - Debounce top-left kill switch (~0.35s) to avoid accidental aborts.
 - Kill switches for Mac training: top-left corner, Escape, Ctrl+C; always release mouse on exit.

@@ -47,6 +47,43 @@ def bike_visible(frame: np.ndarray, min_pixels: int = 200) -> bool:
     return len(xs) >= min_pixels
 
 
+def find_play_button(frame: np.ndarray) -> tuple[int, int] | None:
+    """
+    Find the green hexagonal Play button in the lower third.
+
+    Returns (x, y) in frame pixel coords, or None if not found.
+    """
+    h, w = frame.shape[:2]
+    y0, y1 = int(h * 0.58), int(h * 0.88)
+    x0, x1 = int(w * 0.18), int(w * 0.82)
+    crop = frame[y0:y1, x0:x1]
+    if crop.size == 0:
+        return None
+
+    r = crop[:, :, 0].astype(np.int16)
+    g = crop[:, :, 1].astype(np.int16)
+    b = crop[:, :, 2].astype(np.int16)
+    # Vibrant green hex (not yellow "claim", not white icons).
+    green = (g > 140) & (g > r + 35) & (g > b + 35) & (r < 120)
+
+    ys, xs = np.nonzero(green)
+    if len(xs) < 80:
+        return None
+
+    # Largest contiguous-ish cluster via centroid of green mass near horizontal center.
+    cx = crop.shape[1] / 2.0
+    weights = 1.0 / (1.0 + 0.005 * (xs - cx) ** 2)
+    x = int(np.average(xs, weights=weights))
+    y = int(np.average(ys, weights=weights))
+    return x0 + x, y0 + y
+
+
+def play_fallback_xy(frame: np.ndarray) -> tuple[int, int]:
+    """Fixed spot on the green Play button band (~76% down)."""
+    h, w = frame.shape[:2]
+    return int(w * 0.5), int(h * 0.76)
+
+
 def estimate_velocity(angle: float, prev_angle: float | None, dt: float) -> float:
     """Rough angular velocity in degrees per second."""
     if prev_angle is None or dt <= 0:

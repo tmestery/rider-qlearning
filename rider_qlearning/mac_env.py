@@ -34,12 +34,29 @@ class MacRiderEnv:
         mac_input.emergency_release()
         self.holding = False
 
-    def _tap_play(self) -> None:
-        """Tap center of the Rider window (starts a run or dismisses game over)."""
+    def _tap_play(self, attempt: int = 0) -> None:
+        """Find Play in the lower third (or use a fixed spot) and tap it."""
+        mac_input.activate_rider()
         self.window = mac_window.find_rider_window()
-        cx, cy = self.window.center
-        # Slightly below center — play / continue UI is often mid-lower.
-        mac_input.tap(cx, cy + self.window.height * 0.08)
+        frame = mac_window.capture_window(self.window)
+
+        found = features.find_play_button(frame)
+        if found is None:
+            # Fixed lower-third middle; nudge a bit on retries.
+            fx, fy = features.play_fallback_xy(frame)
+            fy = int(frame.shape[0] * (0.76 + 0.04 * (attempt % 3)))
+            source = "fallback"
+        else:
+            fx, fy = found
+            source = "detected"
+
+        x, y = self.window.frame_to_screen(fx, fy, frame.shape)
+        print(
+            f"  tap Play ({source}) frame=({fx},{fy}) screen=({x:.0f},{y:.0f}) "
+            f"window=({self.window.left:.0f},{self.window.top:.0f},"
+            f"{self.window.width:.0f}x{self.window.height:.0f})"
+        )
+        mac_input.tap(x, y, hold_seconds=0.15)
 
     def start_run(self) -> None:
         """
@@ -47,11 +64,12 @@ class MacRiderEnv:
         Rider often needs: crash → tap (score) → tap (play again).
         """
         self.close()
-        print("  tapping Play / Play again…")
-        for attempt in range(4):
+        print("  tapping Play / Play again (lower third)…")
+        for attempt in range(6):
             safety.check()
-            self._tap_play()
-            safety.sleep(1.0)
+            self._tap_play(attempt)
+            safety.sleep(1.2)
+            self.window = mac_window.find_rider_window()
             frame = mac_window.capture_window(self.window)
             if features.bike_visible(frame):
                 print(f"  run started (tap {attempt + 1})")
