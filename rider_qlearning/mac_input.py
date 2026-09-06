@@ -7,6 +7,8 @@ Hold = lean forward, release = lean back (same as tapping the screen).
 
 from __future__ import annotations
 
+import time
+
 from Quartz import (
     CGEventCreate,
     CGEventCreateMouseEvent,
@@ -45,6 +47,13 @@ def hold(x: float, y: float) -> None:
 def release(x: float, y: float) -> None:
     """Release left mouse at (x, y)."""
     _click_at(x, y, down=False)
+
+
+def tap(x: float, y: float, hold_seconds: float = 0.05) -> None:
+    """Quick click — used for Play / Play again."""
+    hold(x, y)
+    time.sleep(hold_seconds)
+    release(x, y)
 
 
 def emergency_release() -> None:

@@ -7,9 +7,7 @@ Each step:
   3. Screenshot → estimate angle / velocity.
   4. Reward from score-style signals (survive / flip / crash heuristic).
 
-Before using this:
-  - Open Rider and get to a playable run (or ready-to-tap screen).
-  - Grant Screen Recording + Accessibility to your terminal.
+When a run ends, reset() taps the window to hit Play / Play again.
 """
 
 from __future__ import annotations
@@ -28,20 +26,45 @@ class MacRiderEnv:
         self.prev_angle: float | None = None
         self.score = 0.0
         self.steps = 0
-        self._flip_armed = True  # only pay flip bonus once per rotation
+        self._flip_armed = True
+        self._saw_bike = False  # becomes True once silhouette appears this episode
 
     def close(self) -> None:
         """Always release the mouse when stopping."""
         mac_input.emergency_release()
         self.holding = False
 
+    def _tap_play(self) -> None:
+        """Tap center of the Rider window (starts a run or dismisses game over)."""
+        self.window = mac_window.find_rider_window()
+        cx, cy = self.window.center
+        # Slightly below center — play / continue UI is often mid-lower.
+        mac_input.tap(cx, cy + self.window.height * 0.08)
+
+    def start_run(self) -> None:
+        """
+        Tap through Play / Play again until a bike silhouette shows up.
+        Rider often needs: crash → tap (score) → tap (play again).
+        """
+        self.close()
+        print("  tapping Play / Play again…")
+        for attempt in range(4):
+            safety.check()
+            self._tap_play()
+            safety.sleep(1.0)
+            frame = mac_window.capture_window(self.window)
+            if features.bike_visible(frame):
+                print(f"  run started (tap {attempt + 1})")
+                return
+        print("  warning: no bike seen yet — continuing anyway")
+
     def reset(self) -> tuple[float, float]:
-        """Release input and read the starting state. Start a run in-game first."""
+        """End any hold, tap to (re)start a run, then read the starting state."""
         safety.check()
         self.close()
-        safety.sleep(0.2)
+        safety.sleep(0.3)
+        self.start_run()
 
-        # Refresh window bounds in case it moved.
         self.window = mac_window.find_rider_window()
         frame = mac_window.capture_window(self.window)
         angle = features.estimate_angle(frame)
@@ -49,6 +72,7 @@ class MacRiderEnv:
         self.score = 0.0
         self.steps = 0
         self._flip_armed = True
+        self._saw_bike = features.bike_visible(frame)
         return angle, 0.0
 
     def step(self, action: int) -> StepResult:
@@ -66,23 +90,30 @@ class MacRiderEnv:
         safety.sleep(self.step_seconds)
 
         frame = mac_window.capture_window(self.window)
+        visible = features.bike_visible(frame)
         angle = features.estimate_angle(frame)
         velocity = features.estimate_velocity(angle, self.prev_angle, self.step_seconds)
         self.prev_angle = angle
         self.steps += 1
 
-        reward = 1.0  # survived another beat (score goes up while alive)
+        reward = 1.0
         done = False
 
-        # Controlled flip: large |angle| then recovery → double points (your rule).
+        if visible:
+            self._saw_bike = True
+
+        # Controlled flip: large |angle| then recovery → double points.
         if abs(angle) >= 140.0 and self._flip_armed:
             reward = 2.0
             self._flip_armed = False
         if abs(angle) < 60.0:
             self._flip_armed = True
 
-        # Crash heuristic: extreme tilt that doesn't recover quickly.
+        # Crash: extreme tilt, or bike disappeared after we had seen it (game over UI).
         if abs(angle) >= 170.0:
+            reward = -5.0
+            done = True
+        elif self._saw_bike and not visible and self.steps > 10:
             reward = -5.0
             done = True
 

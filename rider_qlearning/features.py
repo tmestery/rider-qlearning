@@ -19,17 +19,7 @@ def estimate_angle(frame: np.ndarray) -> float:
     Return tilt in degrees. 0 ≈ upright, positive ≈ leaning forward (nose down).
     Returns 0.0 if we can't find the bike.
     """
-    gray = _to_gray(frame)
-    h, w = gray.shape
-
-    # Focus on the center where the bike sits.
-    y0, y1 = int(h * 0.25), int(h * 0.85)
-    x0, x1 = int(w * 0.25), int(w * 0.75)
-    crop = gray[y0:y1, x0:x1]
-
-    # Silhouette is dark against a brighter background.
-    mask = crop < 80
-    ys, xs = np.nonzero(mask)
+    xs, ys = _silhouette_points(frame)
     if len(xs) < 50:
         return 0.0
 
@@ -51,6 +41,12 @@ def estimate_angle(frame: np.ndarray) -> float:
     return degrees
 
 
+def bike_visible(frame: np.ndarray, min_pixels: int = 200) -> bool:
+    """True when a dark rider silhouette is in the play area (run in progress)."""
+    xs, _ys = _silhouette_points(frame)
+    return len(xs) >= min_pixels
+
+
 def estimate_velocity(angle: float, prev_angle: float | None, dt: float) -> float:
     """Rough angular velocity in degrees per second."""
     if prev_angle is None or dt <= 0:
@@ -60,6 +56,17 @@ def estimate_velocity(angle: float, prev_angle: float | None, dt: float) -> floa
     if abs(delta) > 90:
         return 0.0
     return delta / dt
+
+
+def _silhouette_points(frame: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    gray = _to_gray(frame)
+    h, w = gray.shape
+    y0, y1 = int(h * 0.25), int(h * 0.85)
+    x0, x1 = int(w * 0.25), int(w * 0.75)
+    crop = gray[y0:y1, x0:x1]
+    mask = crop < 80
+    ys, xs = np.nonzero(mask)
+    return xs, ys
 
 
 def _to_gray(frame: np.ndarray) -> np.ndarray:

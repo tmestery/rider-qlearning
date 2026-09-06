@@ -32,10 +32,11 @@ def train() -> None:
         "\n"
         "=== SAFETY ===\n"
         "  Take control back anytime:\n"
-        "    • move mouse to TOP-LEFT corner\n"
+        "    • park mouse in TOP-LEFT corner (~0.35s)\n"
         "    • hold Escape\n"
         "    • Ctrl+C\n"
         "  Any of these releases the mouse and stops training.\n"
+        "  Episodes auto-tap Play / Play again between runs.\n"
         "==============\n"
     )
     print("Starting in 3 seconds — switch to Rider…")
@@ -48,8 +49,7 @@ def train() -> None:
 
     try:
         for episode in range(1, EPISODES + 1):
-            print(f"\n=== episode {episode}/{EPISODES} — tap to start a run if needed ===")
-            sleep(1.5)
+            print(f"\n=== episode {episode}/{EPISODES} ===")
             angle, velocity = env.reset()
             state = discretize(angle, velocity)
             done = False

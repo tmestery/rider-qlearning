@@ -56,9 +56,11 @@ python train_mac.py
 
 **Kill switches** (any one stops training and releases the mouse):
 
-- Move the cursor to the **top-left corner** of the screen
+- Move the cursor to the **top-left corner** of the screen (hold ~0.35s)
 - Hold **Escape**
 - **Ctrl+C**
+
+Between episodes the bot **taps Play / Play again** for you (often twice — score screen then restart).
 
 ## Where we are
 
