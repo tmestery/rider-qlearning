@@ -6,10 +6,12 @@ Kill switches (any one stops training and releases the mouse):
   - Hold Escape
   - Ctrl+C
 
-Usage:
+Usage (from Terminal.app, not Cursor's terminal):
   1. Open Rider and get onto a screen where tapping starts / continues a run.
-  2. Grant Screen Recording + Accessibility to your terminal.
+  2. Grant Screen Recording + Accessibility to Terminal.
   3. python train_mac.py
+
+Re-running loads checkpoints/q_table_mac.npy if it exists (continues learning).
 """
 
 from __future__ import annotations
@@ -18,13 +20,15 @@ from pathlib import Path
 
 from rider_qlearning.agent import Agent
 from rider_qlearning.bins import discretize
-from rider_qlearning.mac_env import MacRiderEnv
+from rider_qlearning.mac_env import MacRiderEnv, REWARD_VERSION
 from rider_qlearning.q_table import ACTION_NAMES, QTable
 from rider_qlearning.safety import AbortTraining, arm, shutdown, sleep
 
 
 EPISODES = 20
 CHECKPOINT_DIR = Path("checkpoints")
+CHECKPOINT_PATH = CHECKPOINT_DIR / "q_table_mac.npy"
+REWARD_MARKER = CHECKPOINT_DIR / "reward_version.txt"
 
 
 def train() -> None:
@@ -45,7 +49,25 @@ def train() -> None:
 
     env = MacRiderEnv()
     q_table = QTable(alpha=0.1, gamma=0.95)
-    agent = Agent(q_table, epsilon=0.3)
+    if CHECKPOINT_PATH.exists():
+        saved_ver = (
+            REWARD_MARKER.read_text().strip() if REWARD_MARKER.exists() else "1"
+        )
+        if saved_ver != str(REWARD_VERSION):
+            print(
+                f"Reward function changed (v{saved_ver} → v{REWARD_VERSION}).\n"
+                f"Deleting {CHECKPOINT_PATH} so training starts clean."
+            )
+            CHECKPOINT_PATH.unlink(missing_ok=True)
+            agent = Agent(q_table, epsilon=0.3)
+            print("No checkpoint — starting a fresh Q-table")
+        else:
+            q_table.load(str(CHECKPOINT_PATH))
+            print(f"Resumed from {CHECKPOINT_PATH}")
+            agent = Agent(q_table, epsilon=0.15)
+    else:
+        print("No checkpoint yet — starting a fresh Q-table")
+        agent = Agent(q_table, epsilon=0.3)
 
     try:
         for episode in range(1, EPISODES + 1):
@@ -77,15 +99,19 @@ def train() -> None:
             )
 
         CHECKPOINT_DIR.mkdir(exist_ok=True)
-        path = CHECKPOINT_DIR / "q_table_mac.npy"
-        q_table.save(str(path))
-        print(f"\nSaved Q-table to {path}")
+        q_table.save(str(CHECKPOINT_PATH))
+        REWARD_MARKER.write_text(str(REWARD_VERSION))
+        print(f"\nSaved Q-table to {CHECKPOINT_PATH}")
         for s in range(q_table.q.shape[0]):
             best = q_table.best_action(s)
             print(f"  state {s:2d}: {ACTION_NAMES[best]:7s}  Q={q_table.q[s]}")
 
     except AbortTraining as exc:
-        print(f"Training aborted ({exc}). You have control again.")
+        # Still save partial progress if we learned anything this session.
+        CHECKPOINT_DIR.mkdir(exist_ok=True)
+        q_table.save(str(CHECKPOINT_PATH))
+        REWARD_MARKER.write_text(str(REWARD_VERSION))
+        print(f"Training aborted ({exc}). Saved progress to {CHECKPOINT_PATH}.")
     finally:
         env.close()
         shutdown()

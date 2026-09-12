@@ -6,7 +6,16 @@ Works with **Ketchapp Rider** on Mac (`/Applications/Rider.app`).
 
 ## The idea (one paragraph)
 
-Each frame we read the bike's **tilt angle** and **vertical velocity**, then **bin** those numbers into buckets (5 angle × 3 velocity = **15 states**). The Q-table stores how good `hold` and `release` have been from each state. The bot picks the better action (with some random exploration early on), gets a **score-based reward** (flips that pay double are good), and nudges the table with the classic Q-learning update. After enough runs, the table becomes a cheat-sheet policy.
+Each frame we read the bike's **tilt angle** and **vertical velocity**, then **bin** those numbers into buckets (5 angle × 3 velocity = **15 states**). The Q-table stores how good `hold` and `release` have been from each state. The bot picks the better action (with some random exploration early on), gets a reward aligned with the real game (distance first, landed flips as a bonus), and nudges the table with the classic Q-learning update.
+
+## How Rider scoring works (what we optimize)
+
+- **Getting further** is the main score (sections / survival).
+- Hold on the ground = accelerate; hold in the air = flip.
+- A **landed** flip scores; a perfect landing roughly **doubles** flip points. Crashing mid-flip scores nothing and ends the run.
+- So: go the distance; flip when you can land it, not for its own sake.
+
+Our Mac reward mirrors that: `+1` per step alive, `+4` only after recovering upright from an inversion, `-12` on crash. Control steps are short (~40ms) so hold/release can be quick.
 
 ## Layout
 
@@ -22,8 +31,9 @@ rider_qlearning/
   mock_env.py            # fake Rider
   mac_window.py          # find window + screenshot
   mac_input.py           # mouse hold / release
-  features.py            # angle from silhouette (PCA)
+  features.py            # angle + Play / in-run detection
   mac_env.py             # real-game environment
+  safety.py              # kill switches
 ```
 
 ## Quick start (mock — no permissions)
@@ -37,44 +47,37 @@ python train.py
 
 ## Mac game setup
 
-1. Install deps (above).
+**Run Mac training from Terminal.app (or iTerm), not Cursor's terminal.**  
+Screen Recording / Accessibility attach to the app that owns the process. Cursor's terminal counts as Cursor.
+
+1. In Terminal.app:
+
+```bash
+cd ~/Desktop/rider-qlearning
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 2. Open **Rider** and leave the game window visible.
-3. Grant your terminal (or Cursor) **Screen Recording** and **Accessibility**:
-   System Settings → Privacy & Security.
-4. Smoke-test capture:
+3. Enable **Screen Recording** and **Accessibility** for **Terminal**, then quit/reopen Terminal.
+4. Smoke-test:
 
 ```bash
 python capture_test.py
+python play_tap_test.py
 ```
 
-You should get `captures/rider_frame.png` and a printed angle.
-
-5. Train on the real game:
+5. Train:
 
 ```bash
 python train_mac.py
 ```
 
-**Kill switches** (any one stops training and releases the mouse):
+Resumes from `checkpoints/q_table_mac.npy` when the reward version matches. A reward-function change auto-resets that checkpoint.
 
-- Move the cursor to the **top-left corner** of the screen (hold ~0.35s)
-- Hold **Escape**
-- **Ctrl+C**
-
-Between episodes the bot **taps Play / Play again** in the **lower-third middle** of the window (often more than once — score screen then restart).
-
-## Where we are
-
-| Done | Still rough |
-|------|-------------|
-| Mock train loop | Angle estimate is a first-pass silhouette PCA |
-| Mac screenshot + hold/release | Crash / flip detection is heuristic, not OCR score |
-| Binning + Q-learning | Restarting runs between episodes is still manual |
-| `capture_test.py` / `train_mac.py` | Bin edges may need tuning for real physics |
+**Kill switches:** park mouse in top-left (~0.35s), hold Escape, or Ctrl+C.
 
 ## Bins
-
-Continuous values like `angle = 17.3` can't live in a small table. We chop the axis into ranges:
 
 - angle edges `[-45, -15, 15, 45]` → 5 buckets  
 - velocity edges `[-2, 2]` → 3 buckets  

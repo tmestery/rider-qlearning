@@ -7,7 +7,8 @@
 
 ## Unreleased
 
-- Fix Play detection (green hex button) and harden Mac clicks; add `play_tap_test.py`.
-- Auto tap Play / Play again between Mac episodes; detect run end when bike silhouette vanishes.
-- Debounce top-left kill switch (~0.35s) to avoid accidental aborts.
-- Kill switches for Mac training: top-left corner, Escape, Ctrl+C; always release mouse on exit.
+- Reward v2: distance-first (`+1`/step), landed-flip bonus (`+4`), harsh crash (`-12`); snappier ~40ms control.
+- Fix Play-again: require real in-run (Play button gone), reject off-center green, dismiss score screens.
+- Resume checkpoints; auto-reset table when reward version changes.
+- Run Mac training from Terminal.app (not Cursor) so only Terminal needs Screen Recording.
+- Kill switches: top-left corner, Escape, Ctrl+C; emergency mouse release.

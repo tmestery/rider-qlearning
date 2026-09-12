@@ -102,8 +102,10 @@ def capture_window(info: WindowInfo) -> np.ndarray:
     )
     if image is None:
         raise RuntimeError(
-            "Screenshot failed. Grant Screen Recording to your terminal "
-            "(System Settings → Privacy & Security → Screen Recording)."
+            "Screenshot failed.\n"
+            "If you are in Cursor's terminal, macOS treats that as Cursor — "
+            "use Terminal.app instead and grant Screen Recording to Terminal only.\n"
+            "System Settings → Privacy & Security → Screen Recording."
         )
 
     width = int(CGImageGetWidth(image))
