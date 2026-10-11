@@ -1,40 +1,15 @@
 # Rider Q-learning
 
-A tiny tabular Q-learning agent that learns **hold vs release** for the game Rider. No neural network — just a 15×2 lookup table.
+Tabular Q-learning agent that learns **hold vs release** for [Ketchapp Rider](https://apps.apple.com/app/rider/id1217141858) on Mac. No neural network — just a **15×2** lookup table.
 
-Works with **Ketchapp Rider** on Mac (`/Applications/Rider.app`).
+![Ketchapp Rider](docs/rider.png)
 
-## The idea (one paragraph)
+## Requirements
 
-Each frame we read the bike's **tilt angle** and **vertical velocity**, then **bin** those numbers into buckets (5 angle × 3 velocity = **15 states**). The Q-table stores how good `hold` and `release` have been from each state. The bot picks the better action (with some random exploration early on), gets a reward aligned with the real game (distance first, landed flips as a bonus), and nudges the table with the classic Q-learning update.
-
-## How Rider scoring works (what we optimize)
-
-- **Getting further** is the main score (sections / survival).
-- Hold on the ground = accelerate; hold in the air = flip.
-- A **landed** flip scores; a perfect landing roughly **doubles** flip points. Crashing mid-flip scores nothing and ends the run.
-- So: go the distance; flip when you can land it, not for its own sake.
-
-Our Mac reward mirrors that: `+1` per step alive, `+4` only after recovering upright from an inversion, `-12` on crash. Control steps are short (~40ms) so hold/release can be quick.
-
-## Layout
-
-```
-train.py                 # train on the fake env (safe, no game needed)
-train_mac.py             # train against real Rider on Mac
-capture_test.py          # screenshot + angle smoke test
-play_tap_test.py         # debug Play button click (saves annotated PNG)
-rider_qlearning/
-  bins.py                # continuous numbers → state id
-  q_table.py             # the 15×2 table + update rule
-  agent.py               # epsilon-greedy action choice
-  mock_env.py            # fake Rider
-  mac_window.py          # find window + screenshot
-  mac_input.py           # mouse hold / release
-  features.py            # angle + Play / in-run detection
-  mac_env.py             # real-game environment
-  safety.py              # kill switches
-```
+- **Python 3.10+**
+- **macOS** for real-game training (Screen Recording + Accessibility for **Terminal.app**)
+- Ketchapp **Rider** installed (`/Applications/Rider.app`)
+- Mock training works on any OS with Python (no game needed)
 
 ## Quick start (mock — no permissions)
 
@@ -45,41 +20,89 @@ pip install -r requirements.txt
 python train.py
 ```
 
-## Mac game setup
+## Mac training (Terminal.app only)
 
-**Run Mac training from Terminal.app (or iTerm), not Cursor's terminal.**  
-Screen Recording / Accessibility attach to the app that owns the process. Cursor's terminal counts as Cursor.
+macOS attaches Screen Recording / Accessibility to the **app that owns the process**. Cursor’s integrated terminal counts as Cursor — use **Terminal.app** or iTerm instead.
 
-1. In Terminal.app:
+1. Open Rider and leave the window visible.
+2. System Settings → Privacy & Security → enable **Screen Recording** and **Accessibility** for **Terminal**, then quit and reopen Terminal.
+3. Train:
 
 ```bash
-cd ~/Desktop/rider-qlearning
+cd ~/Desktop/rider-qlearning   # or your clone path
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-2. Open **Rider** and leave the game window visible.
-3. Enable **Screen Recording** and **Accessibility** for **Terminal**, then quit/reopen Terminal.
-4. Smoke-test:
-
-```bash
-python capture_test.py
-python play_tap_test.py
-```
-
-5. Train:
-
-```bash
+python capture_test.py         # optional smoke test
 python train_mac.py
 ```
 
-Resumes from `checkpoints/q_table_mac.npy` when the reward version matches. A reward-function change auto-resets that checkpoint.
+Resumes from `checkpoints/q_table_mac.npy` when the reward version matches. Delete that file (or let a reward-version bump reset it) to start fresh.
 
-**Kill switches:** park mouse in top-left (~0.35s), hold Escape, or Ctrl+C.
+**Kill switches** (any one stops training and releases the mouse):
+
+- Park the cursor in the **top-left corner** (~0.35s)
+- Hold **Escape**
+- **Ctrl+C**
+
+## What it optimizes
+
+Rider scores **distance** first; **landed** flips add bonus (perfect landings roughly double flip points). Crashing mid-flip ends the run.
+
+Mac rewards mirror that:
+
+| Signal | Reward |
+|--------|--------|
+| Stay alive / cover ground | `+1` per step |
+| Land a flip (inverted → upright) | `+4` |
+| Crash / back to menu | `-12` |
+
+Control steps are short (~40ms) so hold/release can stay snappy.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  frame[Screenshot] --> features[Angle and velocity]
+  features --> bins[Discretize bins]
+  bins --> state[State 0 to 14]
+  state --> qtable[Q-table hold vs release]
+  qtable --> action[Epsilon-greedy action]
+  action --> tap[Mouse hold or release]
+  tap --> reward[Reward]
+  reward --> update[Q-learning update]
+  update --> qtable
+```
+
+```
+train.py                 # mock env trainer (safe, no game)
+train_mac.py             # real Rider on Mac
+capture_test.py          # screenshot + angle smoke test
+play_tap_test.py         # debug Play-button click
+pyproject.toml           # package metadata / version
+requirements.txt         # pip install -r path
+rider_qlearning/
+  bins.py                # continuous values → state id
+  q_table.py             # 15×2 table + update rule
+  agent.py               # epsilon-greedy policy
+  mock_env.py            # fake Rider for learning the loop
+  mac_window.py          # find window + screenshot
+  mac_input.py           # mouse hold / release / tap
+  features.py            # angle, Play button, in-run detection
+  mac_env.py             # real-game environment + rewards
+  safety.py              # kill switches
+  step.py                # shared StepResult
+```
 
 ## Bins
 
-- angle edges `[-45, -15, 15, 45]` → 5 buckets  
-- velocity edges `[-2, 2]` → 3 buckets  
+- Angle edges `[-45, -15, 15, 45]` → 5 buckets
+- Velocity edges `[-2, 2]` → 3 buckets
+- State id = `angle_bin * 3 + velocity_bin` → `0..14`
 
-State id = `angle_bin * 3 + velocity_bin` → ids `0..14`.
+## Disclaimer
+
+This project is an educational automation demo for personal learning. **Rider** and its art belong to Ketchapp. This repository’s code is MIT-licensed; game assets are not redistributed as a product claim.
+
+## License
+
+[MIT](LICENSE) © Tyler Mestery
