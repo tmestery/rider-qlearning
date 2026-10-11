@@ -1,0 +1,26 @@
+[project]
+name = "rider-qlearning"
+version = "2.0.0"
+description = "Tabular Q-learning agent for Ketchapp Rider on Mac — no neural net, 15×2 Q-table."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+  { name = "Tyler Mestery" },
+]
+keywords = ["q-learning", "reinforcement-learning", "rider", "mac"]
+dependencies = [
+  "numpy>=1.26",
+  "Pillow>=10.0",
+  "pyobjc-framework-Quartz>=10.0",
+]
+
+[project.urls]
+Repository = "https://github.com/tmestery/rider-qlearning"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["rider_qlearning*"]
